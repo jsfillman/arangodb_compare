@@ -38,9 +38,9 @@ jobs:
         with:
           result-encoding: string
           script: |
-            const tags = ['manual-${{ github.run_id }}', 'latest'];
+            const tags = ['br-${{ github.ref_name }}', 'latest'];
             const username = '${{ github.repository_owner }}';
-            const repoName = '${{ github.event.repository.name }}';
+            const repoName = '${{ github.event.repository.name }}-develop';
             return tags.map((tag) => {
               return `ghcr.io/${username}/${repoName}:${tag}`;
             }).join(',');
