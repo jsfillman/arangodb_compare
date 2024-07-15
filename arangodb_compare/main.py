@@ -105,6 +105,27 @@ def compare_graphs(db1_graphs: Set[str], db2_graphs: Set[str]) -> None:
     else:
         print("No unique graphs in db2.")
 
+def get_view_names(db: StandardDatabase) -> Set[str]:
+    return {view['name'] for view in db.views()}
+
+def compare_views(db1_views: Set[str], db2_views: Set[str]) -> None:
+    unique_to_db1 = db1_views - db2_views
+    unique_to_db2 = db2_views - db1_views
+
+    if unique_to_db1:
+        print("Views unique to db1:")
+        for view in unique_to_db1:
+            print(f" - {view}")
+    else:
+        print("No unique views in db1.")
+
+    if unique_to_db2:
+        print("Views unique to db2:")
+        for view in unique_to_db2:
+            print(f" - {view}")
+    else:
+        print("No unique views in db2.")
+
 def main() -> None:
     db1, db2 = connect_to_arango_databases()
 
@@ -122,6 +143,11 @@ def main() -> None:
     db1_graphs: Set[str] = get_graph_names(db1)
     db2_graphs: Set[str] = get_graph_names(db2)
     compare_graphs(db1_graphs, db2_graphs)
+
+    # Compare views
+    db1_views: Set[str] = get_view_names(db1)
+    db2_views: Set[str] = get_view_names(db2)
+    compare_views(db1_views, db2_views)
 
 if __name__ == "__main__":
     main()
