@@ -63,13 +63,65 @@ def compare_collections(db1_collections: Set[str], db2_collections: Set[str]) ->
     else:
         print("No unique collections in db2.")
 
+def get_analyzer_names(db: StandardDatabase) -> Set[str]:
+    return {analyzer['name'] for analyzer in db.analyzers()}
+
+def compare_analyzers(db1_analyzers: Set[str], db2_analyzers: Set[str]) -> None:
+    unique_to_db1 = db1_analyzers - db2_analyzers
+    unique_to_db2 = db2_analyzers - db1_analyzers
+
+    if unique_to_db1:
+        print("Analyzers unique to db1:")
+        for analyzer in unique_to_db1:
+            print(f" - {analyzer}")
+    else:
+        print("No unique analyzers in db1.")
+
+    if unique_to_db2:
+        print("Analyzers unique to db2:")
+        for analyzer in unique_to_db2:
+            print(f" - {analyzer}")
+    else:
+        print("No unique analyzers in db2.")
+
+def get_graph_names(db: StandardDatabase) -> Set[str]:
+    return {graph['name'] for graph in db.graphs()}
+
+def compare_graphs(db1_graphs: Set[str], db2_graphs: Set[str]) -> None:
+    unique_to_db1 = db1_graphs - db2_graphs
+    unique_to_db2 = db2_graphs - db1_graphs
+
+    if unique_to_db1:
+        print("Graphs unique to db1:")
+        for graph in unique_to_db1:
+            print(f" - {graph}")
+    else:
+        print("No unique graphs in db1.")
+
+    if unique_to_db2:
+        print("Graphs unique to db2:")
+        for graph in unique_to_db2:
+            print(f" - {graph}")
+    else:
+        print("No unique graphs in db2.")
+
 def main() -> None:
     db1, db2 = connect_to_arango_databases()
 
+    # Compare collections
     db1_collections: Set[str] = get_collection_names(db1)
     db2_collections: Set[str] = get_collection_names(db2)
-
     compare_collections(db1_collections, db2_collections)
+
+    # Compare analyzers
+    db1_analyzers: Set[str] = get_analyzer_names(db1)
+    db2_analyzers: Set[str] = get_analyzer_names(db2)
+    compare_analyzers(db1_analyzers, db2_analyzers)
+
+    # Compare graphs
+    db1_graphs: Set[str] = get_graph_names(db1)
+    db2_graphs: Set[str] = get_graph_names(db2)
+    compare_graphs(db1_graphs, db2_graphs)
 
 if __name__ == "__main__":
     main()
