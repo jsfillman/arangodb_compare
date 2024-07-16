@@ -97,7 +97,13 @@ def compare_entities_detail(db1: StandardDatabase, db2: StandardDatabase, entity
             diff = DeepDiff(json.loads(normalized_db1), json.loads(normalized_db2), ignore_order=True, exclude_paths=ignore_fields)
             if diff:
                 print(f"Differences in {entity_type} '{name}' (collection: {collection_name}):")
-                print(diff)
+                for key, value in diff.items():
+                    for sub_key, sub_value in value.items():
+                        if 'values_changed' in key or 'type_changes' in key:
+                            print(f"  From db1 (old_value): {sub_value['old_value']}")
+                            print(f"  From db2 (new_value): {sub_value['new_value']}")
+                        else:
+                            print(f"  {key}: {sub_value}")
 
 def get_collection_names(db: StandardDatabase) -> Set[str]:
     return {collection['name'] for collection in db.collections()}
@@ -151,10 +157,12 @@ def compare_random_documents(db1: StandardDatabase, db2: StandardDatabase, colle
     docs_db2 = fetch_collection_documents(db2, collection_name)
 
     common_keys = set(docs_db1.keys()).intersection(docs_db2.keys())
-    if len(common_keys) > sample_size:
-        sample_keys = random.sample(common_keys, sample_size)
+    common_keys_list = list(common_keys)  # Convert to list to avoid deprecation warning
+
+    if len(common_keys_list) > sample_size:
+        sample_keys = random.sample(common_keys_list, sample_size)
     else:
-        sample_keys = common_keys
+        sample_keys = common_keys_list
 
     for key in sample_keys:
         doc_db1 = docs_db1[key]
@@ -166,7 +174,13 @@ def compare_random_documents(db1: StandardDatabase, db2: StandardDatabase, colle
         diff = DeepDiff(json.loads(normalized_db1), json.loads(normalized_db2), ignore_order=True, exclude_paths=ignore_fields)
         if diff:
             print(f"Differences in document '{key}' (collection: {collection_name}):")
-            print(diff)
+            for k, v in diff.items():
+                for sk, sv in v.items():
+                    if 'values_changed' in k or 'type_changes' in k:
+                        print(f"  From db1 (old_value): {sv['old_value']}")
+                        print(f"  From db2 (new_value): {sv['new_value']}")
+                    else:
+                        print(f"  {k}: {sv}")
 
 # Collection Comparison Functions
 
