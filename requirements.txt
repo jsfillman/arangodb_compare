@@ -1,4 +1,3 @@
 deepdiff
-flask
 markdown
 python-arango
