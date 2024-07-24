@@ -3,7 +3,7 @@ import json
 import random
 from datetime import datetime
 from deepdiff import DeepDiff
-from typing import Dict, Any, Set, Tuple
+from typing import Dict, Any, Set, Tuple, List
 from arango import ArangoClient
 from arango.database import StandardDatabase
 
@@ -164,34 +164,62 @@ def compare_collections(log_dir: str, db1_collections: Set[str], db2_collections
 
 # Collection Document Functions
 
+def fetch_document_ids(db: StandardDatabase, collection_name: str) -> List[str]:
+    return sorted({doc['_key'] for doc in db.collection(collection_name).all()})
+
 def fetch_collection_documents(db: StandardDatabase, collection_name: str, sample_size: int = 100) -> Dict[str, Any]:
     all_docs = list(db.collection(collection_name).all())
     if len(all_docs) > sample_size:
         return {doc['_key']: doc for doc in random.sample(all_docs, sample_size)}
     return {doc['_key']: doc for doc in all_docs}
+#
+# def compare_collection_documents(log_dir: str, db1: StandardDatabase, db2: StandardDatabase, collection_name: str, sample_size: int = 100) -> None:
+#     docs_db1 = fetch_collection_documents(db1, collection_name, sample_size)
+#     docs_db2 = fetch_collection_documents(db2, collection_name, sample_size)
+#
+#     unique_to_db1 = set(docs_db1.keys()) - set(docs_db2.keys())
+#     unique_to_db2 = set(docs_db2.keys()) - set(docs_db1.keys())
+#
+#     log_content = f"# Document Comparison for Collection: {collection_name}\n\n"
+#
+#     if unique_to_db1:
+#         log_content += f"## Documents unique to db1:\n"
+#         for doc in unique_to_db1:
+#             log_content += f"- {doc}\n"
+#     else:
+#         log_content += f"No unique documents in db1.\n"
+#
+#     if unique_to_db2:
+#         log_content += f"## Documents unique to db2:\n"
+#         for doc in unique_to_db2:
+#             log_content += f"- {doc}\n"
+#     else:
+#         log_content += f"No unique documents in db2.\n"
+#
+#     write_log(log_dir, "documents", log_content)
 
-def compare_collection_documents(log_dir: str, db1: StandardDatabase, db2: StandardDatabase, collection_name: str, sample_size: int = 100) -> None:
-    docs_db1 = fetch_collection_documents(db1, collection_name, sample_size)
-    docs_db2 = fetch_collection_documents(db2, collection_name, sample_size)
+def compare_document_ids(log_dir: str, db1: StandardDatabase, db2: StandardDatabase, collection_name: str) -> None:
+    ids_db1 = fetch_document_ids(db1, collection_name)
+    ids_db2 = fetch_document_ids(db2, collection_name)
 
-    unique_to_db1 = set(docs_db1.keys()) - set(docs_db2.keys())
-    unique_to_db2 = set(docs_db2.keys()) - set(docs_db1.keys())
+    unique_to_db1 = set(ids_db1) - set(ids_db2)
+    unique_to_db2 = set(ids_db2) - set(ids_db1)
 
-    log_content = f"# Document Comparison for Collection: {collection_name}\n\n"
+    log_content = f"# Document ID Comparison for Collection: {collection_name}\n\n"
 
     if unique_to_db1:
-        log_content += f"## Documents unique to db1:\n"
-        for doc in unique_to_db1:
-            log_content += f"- {doc}\n"
+        log_content += f"## Document IDs unique to db1:\n"
+        for doc_id in sorted(unique_to_db1):
+            log_content += f"- {doc_id}\n"
     else:
-        log_content += f"No unique documents in db1.\n"
+        log_content += f"No unique document IDs in db1.\n"
 
     if unique_to_db2:
-        log_content += f"## Documents unique to db2:\n"
-        for doc in unique_to_db2:
-            log_content += f"- {doc}\n"
+        log_content += f"## Document IDs unique to db2:\n"
+        for doc_id in sorted(unique_to_db2):
+            log_content += f"- {doc_id}\n"
     else:
-        log_content += f"No unique documents in db2.\n"
+        log_content += f"No unique document IDs in db2.\n"
 
     write_log(log_dir, "documents", log_content)
 
@@ -238,7 +266,7 @@ def compare_random_documents(log_dir: str, db1: StandardDatabase, db2: StandardD
 
 def compare_collection_entities(log_dir: str, db1: StandardDatabase, db2: StandardDatabase, collection_name: str, ignore_fields: Set[str], sample_size: int = 100) -> None:
     print(f"\nComparing collection: {collection_name}")
-    compare_collection_documents(log_dir, db1, db2, collection_name, sample_size)
+    # compare_collection_documents(log_dir, db1, db2, collection_name, sample_size)
     compare_entities_existence(log_dir, db1, db2, "index", collection_name)
     compare_entities_detail(log_dir, db1, db2, "index", ignore_fields, collection_name)
 
@@ -279,9 +307,10 @@ def main() -> None:
     compare_entities_detail(log_dir, db1, db2, "index", ignore_fields)
     compare_entities_detail(log_dir, db1, db2, "edge", ignore_fields)
 
-    # Compare collection-specific entities
+    # Compare collection-specific entities and document IDs
     for collection in db1_collections.intersection(db2_collections):
         compare_collection_entities(log_dir, db1, db2, collection, ignore_fields)
+        compare_document_ids(log_dir, db1, db2, collection)
 
     # Compare random documents in a collection
     sample_size = 5  # Number of documents to sample for detailed comparison
