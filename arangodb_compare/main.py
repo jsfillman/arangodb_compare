@@ -101,6 +101,42 @@ def compare_entities_existence(log_dir: str, db1: StandardDatabase, db2: Standar
 
     write_log(log_dir, entity_type, log_content)
 
+# def compare_entities_detail(log_dir: str, db1: StandardDatabase, db2: StandardDatabase, entity_type: str, ignore_fields: Set[str], collection_name: str = None) -> None:
+#     entities_db1 = fetch_entities(db1, entity_type, collection_name)
+#     entities_db2 = fetch_entities(db2, entity_type, collection_name)
+#
+#     log_content = f"# {entity_type.capitalize()} Detailed Comparison\n\n"
+#
+#     if not entities_db1 and not entities_db2:
+#         log_content += f"No {entity_type}s found in either database.\n"
+#     else:
+#         for name, entity in entities_db1.items():
+#             normalized_db1 = normalize_json(entity)
+#
+#             if name in entities_db2:
+#                 normalized_db2 = normalize_json(entities_db2[name])
+#
+#                 diff = DeepDiff(json.loads(normalized_db1), json.loads(normalized_db2), ignore_order=True, exclude_paths=ignore_fields)
+#                 if diff:
+#                     log_content += f"### Differences in {entity_type} '{name}':\n"
+#                     for key, value in diff.items():
+#                         for sub_key, sub_value in value.items():
+#                             if 'values_changed' in key or 'type_changes' in key:
+#                                 log_content += f"- From db1 (old_value): {sub_value['old_value']}\n"
+#                                 log_content += f"- From db2 (new_value): {sub_value['new_value']}\n"
+#                             else:
+#                                 log_content += f"- {key}: {sub_value}\n"
+#                 else:
+#                     log_content += f"No differences in {entity_type} '{name}'.\n"
+#             else:
+#                 log_content += f"{entity_type.capitalize()} '{name}' is unique to db1.\n"
+#
+#         for name in entities_db2.keys():
+#             if name not in entities_db1:
+#                 log_content += f"{entity_type.capitalize()} '{name}' is unique to db2.\n"
+#
+#     write_log(log_dir, entity_type, log_content)
+
 def compare_entities_detail(log_dir: str, db1: StandardDatabase, db2: StandardDatabase, entity_type: str, ignore_fields: Set[str], collection_name: str = None) -> None:
     entities_db1 = fetch_entities(db1, entity_type, collection_name)
     entities_db2 = fetch_entities(db2, entity_type, collection_name)
@@ -120,12 +156,18 @@ def compare_entities_detail(log_dir: str, db1: StandardDatabase, db2: StandardDa
                 if diff:
                     log_content += f"### Differences in {entity_type} '{name}':\n"
                     for key, value in diff.items():
-                        for sub_key, sub_value in value.items():
-                            if 'values_changed' in key or 'type_changes' in key:
-                                log_content += f"- From db1 (old_value): {sub_value['old_value']}\n"
-                                log_content += f"- From db2 (new_value): {sub_value['new_value']}\n"
-                            else:
+                        if isinstance(value, list):
+                            for sub_value in value:
                                 log_content += f"- {key}: {sub_value}\n"
+                        elif isinstance(value, dict):
+                            for sub_key, sub_value in value.items():
+                                if 'values_changed' in key or 'type_changes' in key:
+                                    log_content += f"- From db1 (old_value): {sub_value['old_value']}\n"
+                                    log_content += f"- From db2 (new_value): {sub_value['new_value']}\n"
+                                else:
+                                    log_content += f"- {key}: {sub_value}\n"
+                        else:
+                            log_content += f"- {key}: {value}\n"
                 else:
                     log_content += f"No differences in {entity_type} '{name}'.\n"
             else:
@@ -136,6 +178,7 @@ def compare_entities_detail(log_dir: str, db1: StandardDatabase, db2: StandardDa
                 log_content += f"{entity_type.capitalize()} '{name}' is unique to db2.\n"
 
     write_log(log_dir, entity_type, log_content)
+
 
 def get_collection_names(db: StandardDatabase) -> Set[str]:
     return {collection['name'] for collection in db.collections()}
@@ -172,31 +215,6 @@ def fetch_collection_documents(db: StandardDatabase, collection_name: str, sampl
     if len(all_docs) > sample_size:
         return {doc['_key']: doc for doc in random.sample(all_docs, sample_size)}
     return {doc['_key']: doc for doc in all_docs}
-#
-# def compare_collection_documents(log_dir: str, db1: StandardDatabase, db2: StandardDatabase, collection_name: str, sample_size: int = 100) -> None:
-#     docs_db1 = fetch_collection_documents(db1, collection_name, sample_size)
-#     docs_db2 = fetch_collection_documents(db2, collection_name, sample_size)
-#
-#     unique_to_db1 = set(docs_db1.keys()) - set(docs_db2.keys())
-#     unique_to_db2 = set(docs_db2.keys()) - set(docs_db1.keys())
-#
-#     log_content = f"# Document Comparison for Collection: {collection_name}\n\n"
-#
-#     if unique_to_db1:
-#         log_content += f"## Documents unique to db1:\n"
-#         for doc in unique_to_db1:
-#             log_content += f"- {doc}\n"
-#     else:
-#         log_content += f"No unique documents in db1.\n"
-#
-#     if unique_to_db2:
-#         log_content += f"## Documents unique to db2:\n"
-#         for doc in unique_to_db2:
-#             log_content += f"- {doc}\n"
-#     else:
-#         log_content += f"No unique documents in db2.\n"
-#
-#     write_log(log_dir, "documents", log_content)
 
 def compare_document_ids(log_dir: str, db1: StandardDatabase, db2: StandardDatabase, collection_name: str) -> None:
     ids_db1 = fetch_document_ids(db1, collection_name)
