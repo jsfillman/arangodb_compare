@@ -1,7 +1,6 @@
 import os
-import json
 from datetime import datetime
-from typing import Dict, Any, List, Tuple
+from typing import List, Tuple
 from arango import ArangoClient
 from arango.database import StandardDatabase
 
@@ -13,10 +12,12 @@ def get_env_variable(var_name: str, default: str) -> str:
         return default
     return value
 
+
 def connect_to_arango(url: str, db_name: str, username: str, password: str) -> Tuple[ArangoClient, StandardDatabase]:
     client = ArangoClient(hosts=url)
     db = client.db(db_name, username=username, password=password)
     return client, db
+
 
 def connect_to_arango_databases() -> Tuple[Tuple[ArangoClient, StandardDatabase], Tuple[ArangoClient, StandardDatabase]]:
     arango_url1 = get_env_variable("ARANGO_URL1", "http://localhost:8529")
@@ -34,6 +35,7 @@ def connect_to_arango_databases() -> Tuple[Tuple[ArangoClient, StandardDatabase]
 
     return (client1, db1), (client2, db2)
 
+
 def setup_logging_directory() -> Tuple[str, str]:
     base_log_dir = get_env_variable("LOGFILE_OUT", os.getcwd())
     arango_db_name1 = get_env_variable("ARANGO_DB_NAME1", "test_db1")
@@ -41,6 +43,7 @@ def setup_logging_directory() -> Tuple[str, str]:
     log_dir = os.path.join(base_log_dir, f"{arango_db_name1}_{timestamp}")
     os.makedirs(log_dir, exist_ok=True)
     return log_dir, timestamp
+
 
 def write_log(log_dir: str, name: str, content: str, md_type: str = "bullet") -> None:
     log_file = os.path.join(log_dir, f"{name}.md")
@@ -65,10 +68,12 @@ def write_log(log_dir: str, name: str, content: str, md_type: str = "bullet") ->
     with open(log_file, 'a') as file:
         file.write(output)
 
-# DB Entity Checks
+# DB-Wide Entity Checks
+
 
 def get_entity_names(db: StandardDatabase, entity_type: str) -> List[str]:
     return [item['name'] for item in getattr(db, entity_type)()]
+
 
 def get_db_entity_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: str) -> None:
     entity_types = ["analyzers", "graphs", "views", "collections"]
@@ -78,8 +83,6 @@ def get_db_entity_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: 
         write_log(log_dir, entity, f"{entity.capitalize()}", "h1")
         names_db1 = get_entity_names(db1, entity)
         names_db2 = get_entity_names(db2, entity)
-
-
         count_db1 = len(names_db1)
         count_db2 = len(names_db2)
         print(f"DB1: {count_db1}, DB2: {count_db2}")
@@ -113,6 +116,38 @@ def get_db_entity_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: 
                     write_log(log_dir, "README", item, "bullet")
                     write_log(log_dir, entity, item, "bullet")
 
+# Per-Collection Checks
+
+
+def get_collection_count(db: StandardDatabase, collection_name: str) -> int:
+    query = f"RETURN LENGTH({collection_name})"
+    result = db.aql.execute(query)
+    return next(result)
+
+
+def compare_collection_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: str) -> None:
+    collection_names = get_entity_names(db1, 'collections')
+
+    write_log(log_dir, "collections", "Collection Document Counts", "h2")
+    for collection_name in collection_names:
+        try:
+            count1 = get_collection_count(db1, collection_name)
+        except Exception as e:
+            print(f"Error getting count for {collection_name} in db1: {e}")
+            continue
+
+        try:
+            count2 = get_collection_count(db2, collection_name)
+        except Exception as e:
+            print(f"Error getting count for {collection_name} in db2: {e}")
+            continue
+
+        if count1 != count2:
+            mismatch_message = f"Mismatch in collection '{collection_name}': {count1} vs {count2}"
+            print(mismatch_message)
+            write_log(log_dir, "collections", mismatch_message, "h3")
+
+
 # Main function
 def main() -> None:
     (client1, db1), (client2, db2) = connect_to_arango_databases()
@@ -121,6 +156,9 @@ def main() -> None:
     # Call to get entity counts
     get_db_entity_counts(db1, db2, log_dir)
 
+    # Compare per-collection counts
+    compare_collection_counts(db1, db2, log_dir)
+
+
 if __name__ == "__main__":
     main()
-
