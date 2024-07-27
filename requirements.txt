@@ -1,8 +1,5 @@
 datetime
 deepdiff
-json
-markdown
-os
 pytest
 python-arango
 typing
