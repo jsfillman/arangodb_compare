@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from deepdiff import DeepDiff
 from typing import List, Tuple
 from arango import ArangoClient
 from arango.database import StandardDatabase
@@ -131,6 +132,30 @@ def get_collection_indexes(db: StandardDatabase, collection_name: str) -> List[d
     return collection.indexes()
 
 
+def get_recent_docs(db: StandardDatabase, collection_name: str, limit: int = 5, timeout: int = 300):
+    aql_query = f"""
+    FOR doc IN {collection_name}
+    SORT doc.updatedAt DESC
+    LIMIT {limit}
+    RETURN doc._key
+    """
+    try:
+        cursor = db.aql.execute(aql_query, ttl=timeout)
+        return [doc for doc in cursor]
+    except Exception as e:
+        print(f"Error retrieving documents for collection {collection_name}: {e}")
+        return []
+
+
+def get_document_content(db: StandardDatabase, collection_name: str, key: str) -> dict:
+    collection = db.collection(collection_name)
+    try:
+        return collection.get({'_key': key})
+    except Exception as e:
+        print(f"Error retrieving document {key} from collection {collection_name}: {e}")
+        return None
+
+
 def compare_collection_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: str) -> None:
     collection_names = get_entity_names(db1, 'collections')
     print(f"Checking collection document counts... ")
@@ -165,7 +190,6 @@ def compare_collection_indexes(db1: StandardDatabase, db2: StandardDatabase, log
         count_indexes1 = len(indexes1)
         count_indexes2 = len(indexes2)
 
-        # print(f"Comparing indexes for collection '{collection_name}': DB1={count_indexes1}, DB2={count_indexes2}")
         write_log(log_dir, "indexes", f"Comparing indexes for collection '{collection_name}':", "h3")
         write_log(log_dir, "indexes", f"DB1: {count_indexes1}, DB2: {count_indexes2}", "bullet")
 
@@ -190,6 +214,33 @@ def compare_collection_indexes(db1: StandardDatabase, db2: StandardDatabase, log
                 for index in unique_to_db2:
                     write_log(log_dir, "indexes", index, "bullet")
 
+
+def compare_recent_docs(db1: StandardDatabase, db2: StandardDatabase, log_dir: str) -> None:
+    collection_names = get_entity_names(db1, 'collections')
+    print(f"Comparing recent documents for collections... ")
+    write_log(log_dir, "documents", "Recent Documents Comparison", "h2")
+
+    for collection_name in collection_names:
+        print(f"Comparing docs in '{collection_name}'...")
+        keys1 = get_recent_docs(db1, collection_name)
+        keys2 = get_recent_docs(db2, collection_name)
+
+        keys_to_compare = set(keys1) & set(keys2)
+
+        for key in keys_to_compare:
+            content1 = get_document_content(db1, collection_name, key)
+            content2 = get_document_content(db2, collection_name, key)
+
+            if content1 is None or content2 is None:
+                print(f"Skipping comparison for document {key} in collection {collection_name} due to retrieval error.")
+                continue
+
+            differences = DeepDiff(content1, content2, ignore_order=True, exclude_paths=["root['_rev']"])
+            if differences:
+                write_log(log_dir, "documents", f"Differences in document '{key}' in collection '{collection_name}':", "h3")
+                write_log(log_dir, "documents", str(differences), "bullet")
+
+
 # Main function
 
 
@@ -205,6 +256,9 @@ def main() -> None:
 
     # Compare per-collection indexes
     compare_collection_indexes(db1, db2, log_dir)
+
+    # Compare recent documents
+    compare_recent_docs(db1, db2, log_dir)
 
 
 if __name__ == "__main__":
