@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime
 from deepdiff import DeepDiff
 from typing import List, Tuple
@@ -120,40 +121,13 @@ def get_db_entity_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: 
 
 # Per-Collection Checks
 
+# 1. Collection Counts
+
 
 def get_collection_count(db: StandardDatabase, collection_name: str) -> int:
     query = f"RETURN LENGTH({collection_name})"
     result = db.aql.execute(query)
     return next(result)
-
-
-def get_collection_indexes(db: StandardDatabase, collection_name: str) -> List[dict]:
-    collection = db.collection(collection_name)
-    return collection.indexes()
-
-
-def get_recent_docs(db: StandardDatabase, collection_name: str, limit: int = 5, timeout: int = 300):
-    aql_query = f"""
-    FOR doc IN {collection_name}
-    SORT doc.updatedAt DESC
-    LIMIT {limit}
-    RETURN doc._key
-    """
-    try:
-        cursor = db.aql.execute(aql_query, ttl=timeout)
-        return [doc for doc in cursor]
-    except Exception as e:
-        print(f"Error retrieving documents for collection {collection_name}: {e}")
-        return []
-
-
-def get_document_content(db: StandardDatabase, collection_name: str, key: str) -> dict:
-    collection = db.collection(collection_name)
-    try:
-        return collection.get({'_key': key})
-    except Exception as e:
-        print(f"Error retrieving document {key} from collection {collection_name}: {e}")
-        return None
 
 
 def compare_collection_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: str) -> None:
@@ -177,6 +151,13 @@ def compare_collection_counts(db1: StandardDatabase, db2: StandardDatabase, log_
             mismatch_message = f"Mismatch in collection '{collection_name}': {count1} vs {count2}"
             print(mismatch_message)
             write_log(log_dir, "collections", mismatch_message, "h3")
+
+# 2. Index Counts
+
+
+def get_collection_indexes(db: StandardDatabase, collection_name: str) -> List[dict]:
+    collection = db.collection(collection_name)
+    return collection.indexes()
 
 
 def compare_collection_indexes(db1: StandardDatabase, db2: StandardDatabase, log_dir: str) -> None:
@@ -214,6 +195,36 @@ def compare_collection_indexes(db1: StandardDatabase, db2: StandardDatabase, log
                 for index in unique_to_db2:
                     write_log(log_dir, "indexes", index, "bullet")
 
+# 3. Recent Documents Deep Comparison
+# May need to use batching or something to allow longer timeouts, as it defaults to 60 regardless
+
+def get_recent_docs(db: StandardDatabase, collection_name: str, limit: int = 5, timeout: int = 900, retries: int = 3):
+    aql_query = f"""
+    FOR doc IN {collection_name}
+    SORT doc.updatedAt DESC
+    LIMIT {limit}
+    RETURN doc._key
+    """
+    attempt = 0
+    while attempt < retries:
+        try:
+            cursor = db.aql.execute(aql_query, ttl=timeout)
+            return [doc for doc in cursor]
+        except Exception as e:
+            print(f"Error retrieving documents for collection {collection_name}: {e}")
+            attempt += 1
+            time.sleep(2 ** attempt)  # Exponential backoff
+    return []
+
+
+def get_document_content(db: StandardDatabase, collection_name: str, key: str) -> dict:
+    collection = db.collection(collection_name)
+    try:
+        return collection.get({'_key': key})
+    except Exception as e:
+        print(f"Error retrieving document {key} from collection {collection_name}: {e}")
+        return None
+
 
 def compare_recent_docs(db1: StandardDatabase, db2: StandardDatabase, log_dir: str) -> None:
     collection_names = get_entity_names(db1, 'collections')
@@ -222,14 +233,11 @@ def compare_recent_docs(db1: StandardDatabase, db2: StandardDatabase, log_dir: s
 
     for collection_name in collection_names:
         print(f"Comparing docs in '{collection_name}'...")
-        keys1 = get_recent_docs(db1, collection_name)
-        keys2 = get_recent_docs(db2, collection_name)
+        keys2 = get_recent_docs(db2, collection_name)  # Get recent document keys from DB2
 
-        keys_to_compare = set(keys1) & set(keys2)
-
-        for key in keys_to_compare:
-            content1 = get_document_content(db1, collection_name, key)
-            content2 = get_document_content(db2, collection_name, key)
+        for key in keys2:
+            content1 = get_document_content(db1, collection_name, key)  # Get document from DB1
+            content2 = get_document_content(db2, collection_name, key)  # Get document from DB2
 
             if content1 is None or content2 is None:
                 print(f"Skipping comparison for document {key} in collection {collection_name} due to retrieval error.")
@@ -239,7 +247,6 @@ def compare_recent_docs(db1: StandardDatabase, db2: StandardDatabase, log_dir: s
             if differences:
                 write_log(log_dir, "documents", f"Differences in document '{key}' in collection '{collection_name}':", "h3")
                 write_log(log_dir, "documents", str(differences), "bullet")
-
 
 # Main function
 
