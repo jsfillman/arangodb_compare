@@ -6,6 +6,7 @@ from arango.database import StandardDatabase
 
 # Utility Functions
 
+
 def get_env_variable(var_name: str, default: str) -> str:
     value = os.getenv(var_name)
     if value is None:
@@ -125,9 +126,14 @@ def get_collection_count(db: StandardDatabase, collection_name: str) -> int:
     return next(result)
 
 
+def get_collection_indexes(db: StandardDatabase, collection_name: str) -> List[dict]:
+    collection = db.collection(collection_name)
+    return collection.indexes()
+
+
 def compare_collection_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: str) -> None:
     collection_names = get_entity_names(db1, 'collections')
-
+    print(f"Checking collection document counts... ")
     write_log(log_dir, "collections", "Collection Document Counts", "h2")
     for collection_name in collection_names:
         try:
@@ -148,7 +154,45 @@ def compare_collection_counts(db1: StandardDatabase, db2: StandardDatabase, log_
             write_log(log_dir, "collections", mismatch_message, "h3")
 
 
+def compare_collection_indexes(db1: StandardDatabase, db2: StandardDatabase, log_dir: str) -> None:
+    collection_names = get_entity_names(db1, 'collections')
+    print(f"Checking indexes for collections... ")
+    write_log(log_dir, "indexes", "Collection Indexes", "h2")
+    for collection_name in collection_names:
+        indexes1 = get_collection_indexes(db1, collection_name)
+        indexes2 = get_collection_indexes(db2, collection_name)
+
+        count_indexes1 = len(indexes1)
+        count_indexes2 = len(indexes2)
+
+        # print(f"Comparing indexes for collection '{collection_name}': DB1={count_indexes1}, DB2={count_indexes2}")
+        write_log(log_dir, "indexes", f"Comparing indexes for collection '{collection_name}':", "h3")
+        write_log(log_dir, "indexes", f"DB1: {count_indexes1}, DB2: {count_indexes2}", "bullet")
+
+        if count_indexes1 != count_indexes2:
+            mismatch_message = f"Mismatch in index count for collection '{collection_name}': {count_indexes1} vs {count_indexes2}"
+            print(mismatch_message)
+            write_log(log_dir, "indexes", mismatch_message, "h4")
+
+            names_indexes1 = {index['name'] for index in indexes1}
+            names_indexes2 = {index['name'] for index in indexes2}
+
+            unique_to_db1 = names_indexes1 - names_indexes2
+            unique_to_db2 = names_indexes2 - names_indexes1
+
+            if unique_to_db1:
+                write_log(log_dir, "indexes", f"Unique indexes to DB1 for collection '{collection_name}':", "h5")
+                for index in unique_to_db1:
+                    write_log(log_dir, "indexes", index, "bullet")
+
+            if unique_to_db2:
+                write_log(log_dir, "indexes", f"Unique indexes to DB2 for collection '{collection_name}':", "h5")
+                for index in unique_to_db2:
+                    write_log(log_dir, "indexes", index, "bullet")
+
 # Main function
+
+
 def main() -> None:
     (client1, db1), (client2, db2) = connect_to_arango_databases()
     log_dir, timestamp = setup_logging_directory()
@@ -158,6 +202,9 @@ def main() -> None:
 
     # Compare per-collection counts
     compare_collection_counts(db1, db2, log_dir)
+
+    # Compare per-collection indexes
+    compare_collection_indexes(db1, db2, log_dir)
 
 
 if __name__ == "__main__":
