@@ -201,7 +201,6 @@ def compare_collection_indexes(db1: StandardDatabase, db2: StandardDatabase, log
 def get_recent_docs(db: StandardDatabase, collection_name: str, limit: int = 5, timeout: int = 900, retries: int = 3):
     aql_query = f"""
     FOR doc IN {collection_name}
-    SORT doc.updatedAt DESC
     LIMIT {limit}
     RETURN doc._key
     """
