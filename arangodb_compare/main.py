@@ -232,9 +232,9 @@ def compare_recent_docs(db1: StandardDatabase, db2: StandardDatabase, log_dir: s
 
     for collection_name in collection_names:
         print(f"Comparing docs in '{collection_name}'...")
-        keys2 = get_recent_docs(db2, collection_name)  # Get recent document keys from DB2
+        keys1 = get_recent_docs(db1, collection_name)  # Get recent document keys from DB2
 
-        for key in keys2:
+        for key in keys1:
             content1 = get_document_content(db1, collection_name, key)  # Get document from DB1
             content2 = get_document_content(db2, collection_name, key)  # Get document from DB2
 
