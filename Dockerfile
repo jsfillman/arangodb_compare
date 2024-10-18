@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
 COPY arangodb_compare/ /app/arangodb_compare
+COPY connections_count/ /app/connections_count
 
 # Set environment variables
 ENV ARANGO_URL1=http://arangodb:8529
@@ -17,10 +18,15 @@ ENV ARANGO_USERNAME1=root
 ENV ARANGO_PASSWORD1=testpassword
 ENV ARANGO_DB_NAME1=_system
 
-ENV ARANGO_URL2=http://arangodb:8530
+ENV ARANGO_URL2=http://arangodb:8529
 ENV ARANGO_USERNAME2=root
 ENV ARANGO_PASSWORD2=testpassword
 ENV ARANGO_DB_NAME2=_system
+
+ENV ARANGO_URL3=http://arangodb:8530
+ENV ARANGO_USERNAME3=root
+ENV ARANGO_PASSWORD3=testpassword
+ENV ARANGO_DB_NAME3=_system
 
 ENV LOGFILE_OUT=/logs
 

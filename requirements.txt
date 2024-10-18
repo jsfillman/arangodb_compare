@@ -2,4 +2,6 @@ datetime
 deepdiff
 pytest
 python-arango
+requests
+rich
 typing
