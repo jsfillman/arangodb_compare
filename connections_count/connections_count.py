@@ -28,7 +28,14 @@ endpoints = {
 }
 
 # CSV Log file location
-csv_log_file = "/var/log/arangodb_connection_log.csv"
+# csv_log_file = "/work/ArangoDB/dump/arango3-rancher1/output/arangodb_connection_log.csv"
+
+log_directory = os.getenv('LOG_DIRECTORY', '/work/ArangoDB/dump/arango3-rancher1/output/')
+timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")  # Format: 2024-07-25_032944
+filename = f"arangodb_connection_log_{timestamp}.csv"
+
+# Full path to the CSV log file
+csv_log_file = os.path.join(log_directory, filename)
 
 # Create CSV log if it doesn't exist
 if not os.path.exists(csv_log_file):
