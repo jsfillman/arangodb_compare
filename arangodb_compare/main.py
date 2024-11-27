@@ -103,6 +103,29 @@ def get_db_entity_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: 
                     write_log(log_dir, entity, item, "bullet")
 
 
+# Collection Checks
+def get_collection_count(db: StandardDatabase, collection_name: str) -> int:
+    query = f"RETURN LENGTH({collection_name})"
+    result = db.aql.execute(query)
+    return next(result)
+
+
+def compare_collection_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: str) -> None:
+    collection_names = get_entity_names(db1, 'collections')
+    print(f"Checking collection document counts... ")
+    write_log(log_dir, "collections", "Collection Document Counts", "h2")
+    for collection_name in collection_names:
+        try:
+            count1 = get_collection_count(db1, collection_name)
+            count2 = get_collection_count(db2, collection_name)
+            if count1 != count2:
+                mismatch_message = f"Mismatch in collection '{collection_name}': {count1} vs {count2}"
+                print(mismatch_message)
+                write_log(log_dir, "collections", mismatch_message, "h3")
+        except Exception as e:
+            print(f"Error getting count for {collection_name} in db1 or db2: {e}")
+
+
 # Main function
 def main() -> None:
     args = parse_arguments()
@@ -115,8 +138,11 @@ def main() -> None:
 
     log_dir, timestamp = setup_logging_directory(args.db_name)
 
-    # Call to get entity counts
+    # Compare entity counts
     get_db_entity_counts(db1, db2, log_dir)
+
+    # Compare collection counts
+    compare_collection_counts(db1, db2, log_dir)
 
 
 if __name__ == "__main__":
