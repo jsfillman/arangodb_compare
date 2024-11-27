@@ -250,6 +250,12 @@ def main():
     # Compare collection counts
     compare_collection_counts(db1, db2, log_dir)
 
+    # Compare per-collection indexes
+    compare_collection_indexes(db1, db2, log_dir)
+
+    # Compare recent documents
+    compare_recent_docs(db1, db2, log_dir)
+
 
 if __name__ == "__main__":
     main()
