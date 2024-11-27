@@ -5,6 +5,7 @@ from deepdiff import DeepDiff
 from typing import List, Tuple
 from arango import ArangoClient
 from arango.database import StandardDatabase
+import argparse
 
 # Utility Functions
 def connect_to_arango(url: str, db_name: str, username: str, password: str) -> Tuple[ArangoClient, StandardDatabase]:
