@@ -26,16 +26,22 @@ def setup_logging_directory(db_name: str) -> Tuple[str, str]:
 def write_log(log_dir: str, name: str, content: str, md_type: str = "bullet") -> None:
     log_file = os.path.join(log_dir, f"{name}.md")
 
-    md_styles = {
-        "h1": f"# {content}",
-        "h2": f"## {content}",
-        "h3": f"### {content}",
-        "h4": f"#### {content}",
-        "h5": f"##### {content}",
-        "bullet": f"  - {content}",
-        "list": f"- {content}"
-    }
-    output = f"\n{md_styles.get(md_type, content)}\n"
+    if md_type == "h1":
+        output = f"\n# {content}\n"
+    elif md_type == "h2":
+        output = f"\n## {content}\n"
+    elif md_type == "h3":
+        output = f"\n### {content}\n"
+    elif md_type == "h4":
+        output = f"\n#### {content}\n"
+    elif md_type == "h5":
+        output = f"\n##### {content}\n"
+    elif md_type == "bullet":
+        output = f"  - {content}\n"
+    elif md_type == "list":
+        output = f"- {content}\n"
+    else:
+        output = f"{content}\n"
 
     with open(log_file, 'a') as file:
         file.write(output)
@@ -59,40 +65,46 @@ def get_db_entity_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: 
     entity_types = ["analyzers", "graphs", "views", "collections"]
 
     for entity in entity_types:
+        print(f"Checking {entity}... ")
         write_log(log_dir, entity, f"{entity.capitalize()}", "h1")
         names_db1 = get_entity_names(db1, entity)
         names_db2 = get_entity_names(db2, entity)
-        count_db1, count_db2 = len(names_db1), len(names_db2)
-        write_log(log_dir, "README", f"{entity.capitalize()} Count: DB1: {count_db1}, DB2: {count_db2}", "bullet")
+        count_db1 = len(names_db1)
+        count_db2 = len(names_db2)
+        print(f"DB1: {count_db1}, DB2: {count_db2}")
+        write_log(log_dir, "README", f"{entity.capitalize()} Count", "h2")
+        write_log(log_dir, "README", f"DB1: {count_db1}, DB2: {count_db2}", "bullet")
+        write_log(log_dir, entity, f"{entity.capitalize()} Count", "h2")
+        write_log(log_dir, entity, f"DB1: {count_db1}, DB2: {count_db2}", "bullet")
 
         if count_db1 != count_db2:
-            mismatch_message = f"Mismatch in {entity} counts: DB1: {count_db1}, DB2: {count_db2}"
+            mismatch_message = f"Mismatch found in {entity} counts."
+            print(mismatch_message)
             write_log(log_dir, "README", mismatch_message, "list")
+            write_log(log_dir, entity, mismatch_message, "list")
 
+            unique_to_db1 = set(names_db1) - set(names_db2)
+            unique_to_db2 = set(names_db2) - set(names_db1)
 
-# Per-Collection Checks
-def get_collection_count(db: StandardDatabase, collection_name: str) -> int:
-    query = f"RETURN LENGTH({collection_name})"
-    result = db.aql.execute(query)
-    return next(result)
+            if unique_to_db1:
+                unique_message_db1 = f"Unique to DB1 {entity}:"
+                write_log(log_dir, "README", unique_message_db1, "h3")
+                write_log(log_dir, entity, unique_message_db1, "h3")
+                for item in sorted(unique_to_db1):
+                    write_log(log_dir, "README", item, "bullet")
+                    write_log(log_dir, entity, item, "bullet")
 
-
-def compare_collection_counts(db1: StandardDatabase, db2: StandardDatabase, log_dir: str) -> None:
-    collection_names = get_entity_names(db1, 'collections')
-    write_log(log_dir, "collections", "Collection Document Counts", "h2")
-    for collection_name in collection_names:
-        try:
-            count1 = get_collection_count(db1, collection_name)
-            count2 = get_collection_count(db2, collection_name)
-            if count1 != count2:
-                mismatch_message = f"Mismatch in collection '{collection_name}': {count1} vs {count2}"
-                write_log(log_dir, "collections", mismatch_message, "h3")
-        except Exception as e:
-            write_log(log_dir, "errors", f"Error in collection '{collection_name}': {e}", "bullet")
+            if unique_to_db2:
+                unique_message_db2 = f"Unique to DB2 {entity}:"
+                write_log(log_dir, "README", unique_message_db2, "h3")
+                write_log(log_dir, entity, unique_message_db2, "h3")
+                for item in sorted(unique_to_db2):
+                    write_log(log_dir, "README", item, "bullet")
+                    write_log(log_dir, entity, item, "bullet")
 
 
 # Main function
-def main():
+def main() -> None:
     args = parse_arguments()
 
     arango_username = os.getenv("ARANGO_USERNAME", "root")
@@ -103,9 +115,8 @@ def main():
 
     log_dir, timestamp = setup_logging_directory(args.db_name)
 
-    # Compare databases
+    # Call to get entity counts
     get_db_entity_counts(db1, db2, log_dir)
-    compare_collection_counts(db1, db2, log_dir)
 
 
 if __name__ == "__main__":
