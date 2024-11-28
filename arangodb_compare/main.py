@@ -47,12 +47,25 @@ def write_log(log_dir: str, name: str, content: str, md_type: str = "bullet") ->
 
 
 # Argument Parsing
-def parse_arguments():  # Added argparse function
+def parse_arguments():  # Updated argparse function with flags
     parser = argparse.ArgumentParser(description="Compare two ArangoDB databases.")
-    parser.add_argument("url1", help="URL of the first ArangoDB instance (e.g., http://localhost:8529).")
-    parser.add_argument("url2", help="URL of the second ArangoDB instance (e.g., http://localhost:8530).")
-    parser.add_argument("db_name", help="Name of the database to compare on both instances.")
+    parser.add_argument("-url1", required=True, help="URL of the first ArangoDB instance (e.g., http://localhost:8529).")
+    parser.add_argument("-url2", required=True, help="URL of the second ArangoDB instance (e.g., http://localhost:8530).")
+    parser.add_argument("-user1", required=True, help="Username for the first ArangoDB instance.")
+    parser.add_argument("-user2", required=True, help="Username for the second ArangoDB instance.")
+    parser.add_argument("-pass1", required=True, help="Password for the first ArangoDB instance.")
+    parser.add_argument("-pass2", required=True, help="Password for the second ArangoDB instance.")
+    parser.add_argument("-db", required=True, help="Name of the database to compare on both ArangoDB instances.")
     return parser.parse_args()
+
+
+# # Argument Parsing
+# def parse_arguments():  # Added argparse function
+#     parser = argparse.ArgumentParser(description="Compare two ArangoDB databases.")
+#     parser.add_argument("url1", help="URL of the first ArangoDB instance (e.g., http://localhost:8529).")
+#     parser.add_argument("url2", help="URL of the second ArangoDB instance (e.g., http://localhost:8530).")
+#     parser.add_argument("db_name", help="Name of the database to compare on both instances.")
+#     return parser.parse_args()
 
 
 # DB-Wide Entity Checks
@@ -234,29 +247,46 @@ def compare_recent_docs(db1: StandardDatabase, db2: StandardDatabase, log_dir: s
 
 # Main function
 def main():
-    args = parse_arguments()  # Use CLI arguments for URLs and DB name
+    args = parse_arguments()  # Use CLI arguments for all parameters
 
-    arango_username = os.getenv("ARANGO_USERNAME", "root")
-    arango_password = os.getenv("ARANGO_PASSWORD", "passwd")
+    # Connect to databases using provided credentials
+    _, db1 = connect_to_arango(args.url1, args.db, args.user1, args.pass1)
+    _, db2 = connect_to_arango(args.url2, args.db, args.user2, args.pass2)
 
-    # Update connect_to_arango_databases logic to use CLI args
-    _, db1 = connect_to_arango(args.url1, args.db_name, arango_username, arango_password)
-    _, db2 = connect_to_arango(args.url2, args.db_name, arango_username, arango_password)
+    # Set up logging directory
+    log_dir, _ = setup_logging_directory(args.db)
 
-    log_dir, timestamp = setup_logging_directory(args.db_name)  # Use db_name in log dir
-
-    # Compare entity counts
+    # Perform comparisons
     get_db_entity_counts(db1, db2, log_dir)
-
-    # Compare collection counts
     compare_collection_counts(db1, db2, log_dir)
-
-    # Compare per-collection indexes
     compare_collection_indexes(db1, db2, log_dir)
-
-    # Compare recent documents
     compare_recent_docs(db1, db2, log_dir)
 
 
-if __name__ == "__main__":
-    main()
+# def main():
+#     args = parse_arguments()  # Use CLI arguments for URLs and DB name
+
+#     arango_username = os.getenv("ARANGO_USERNAME", "root")
+#     arango_password = os.getenv("ARANGO_PASSWORD", "passwd")
+
+#     # Update connect_to_arango_databases logic to use CLI args
+#     _, db1 = connect_to_arango(args.url1, args.db_name, arango_username, arango_password)
+#     _, db2 = connect_to_arango(args.url2, args.db_name, arango_username, arango_password)
+
+#     log_dir, timestamp = setup_logging_directory(args.db_name)  # Use db_name in log dir
+
+#     # Compare entity counts
+#     get_db_entity_counts(db1, db2, log_dir)
+
+#     # Compare collection counts
+#     compare_collection_counts(db1, db2, log_dir)
+
+#     # Compare per-collection indexes
+#     compare_collection_indexes(db1, db2, log_dir)
+
+#     # Compare recent documents
+#     compare_recent_docs(db1, db2, log_dir)
+
+
+# if __name__ == "__main__":
+#     main()
