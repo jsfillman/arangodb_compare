@@ -51,21 +51,12 @@ def parse_arguments():  # Updated argparse function with flags
     parser = argparse.ArgumentParser(description="Compare two ArangoDB databases.")
     parser.add_argument("-url1", required=True, help="URL of the first ArangoDB instance (e.g., http://localhost:8529).")
     parser.add_argument("-url2", required=True, help="URL of the second ArangoDB instance (e.g., http://localhost:8530).")
-    parser.add_argument("-user1", required=True, help="Username for the first ArangoDB instance.")
-    parser.add_argument("-user2", required=True, help="Username for the second ArangoDB instance.")
+    parser.add_argument("-user1", default="root", help="Username for the first ArangoDB instance (default: root).")
+    parser.add_argument("-user2", default="root", help="Username for the second ArangoDB instance (default: root).")
     parser.add_argument("-pass1", required=True, help="Password for the first ArangoDB instance.")
     parser.add_argument("-pass2", required=True, help="Password for the second ArangoDB instance.")
     parser.add_argument("-db", required=True, help="Name of the database to compare on both ArangoDB instances.")
     return parser.parse_args()
-
-
-# # Argument Parsing
-# def parse_arguments():  # Added argparse function
-#     parser = argparse.ArgumentParser(description="Compare two ArangoDB databases.")
-#     parser.add_argument("url1", help="URL of the first ArangoDB instance (e.g., http://localhost:8529).")
-#     parser.add_argument("url2", help="URL of the second ArangoDB instance (e.g., http://localhost:8530).")
-#     parser.add_argument("db_name", help="Name of the database to compare on both instances.")
-#     return parser.parse_args()
 
 
 # DB-Wide Entity Checks
@@ -263,30 +254,5 @@ def main():
     compare_recent_docs(db1, db2, log_dir)
 
 
-# def main():
-#     args = parse_arguments()  # Use CLI arguments for URLs and DB name
-
-#     arango_username = os.getenv("ARANGO_USERNAME", "root")
-#     arango_password = os.getenv("ARANGO_PASSWORD", "passwd")
-
-#     # Update connect_to_arango_databases logic to use CLI args
-#     _, db1 = connect_to_arango(args.url1, args.db_name, arango_username, arango_password)
-#     _, db2 = connect_to_arango(args.url2, args.db_name, arango_username, arango_password)
-
-#     log_dir, timestamp = setup_logging_directory(args.db_name)  # Use db_name in log dir
-
-#     # Compare entity counts
-#     get_db_entity_counts(db1, db2, log_dir)
-
-#     # Compare collection counts
-#     compare_collection_counts(db1, db2, log_dir)
-
-#     # Compare per-collection indexes
-#     compare_collection_indexes(db1, db2, log_dir)
-
-#     # Compare recent documents
-#     compare_recent_docs(db1, db2, log_dir)
-
-
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
