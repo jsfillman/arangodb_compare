@@ -31,8 +31,8 @@ ENV ARANGO_DB_NAME3=_system
 ENV LOGFILE_OUT=/logs
 
 # Copy and set the entrypoint script
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+COPY *.sh /app/
+RUN chmod +x /app/*.sh
 
 # Default entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]

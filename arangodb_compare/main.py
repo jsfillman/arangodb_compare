@@ -5,45 +5,19 @@ from deepdiff import DeepDiff
 from typing import List, Tuple
 from arango import ArangoClient
 from arango.database import StandardDatabase
+import argparse
 
 # Utility Functions
-
-
-def get_env_variable(var_name: str, default: str) -> str:
-    value = os.getenv(var_name)
-    if value is None:
-        return default
-    return value
-
-
 def connect_to_arango(url: str, db_name: str, username: str, password: str) -> Tuple[ArangoClient, StandardDatabase]:
     client = ArangoClient(hosts=url)
     db = client.db(db_name, username=username, password=password)
     return client, db
 
 
-def connect_to_arango_databases() -> Tuple[Tuple[ArangoClient, StandardDatabase], Tuple[ArangoClient, StandardDatabase]]:
-    arango_url1 = get_env_variable("ARANGO_URL1", "http://localhost:8529")
-    arango_db_name1 = get_env_variable("ARANGO_DB_NAME1", "test_db1")
-    arango_username1 = get_env_variable("ARANGO_USERNAME1", "root")
-    arango_password1 = get_env_variable("ARANGO_PASSWORD1", "passwd")
-
-    arango_url2 = get_env_variable("ARANGO_URL2", "http://localhost:8529")
-    arango_db_name2 = get_env_variable("ARANGO_DB_NAME2", "test_db2")
-    arango_username2 = get_env_variable("ARANGO_USERNAME2", "root")
-    arango_password2 = get_env_variable("ARANGO_PASSWORD2", "passwd")
-
-    client1, db1 = connect_to_arango(arango_url1, arango_db_name1, arango_username1, arango_password1)
-    client2, db2 = connect_to_arango(arango_url2, arango_db_name2, arango_username2, arango_password2)
-
-    return (client1, db1), (client2, db2)
-
-
-def setup_logging_directory() -> Tuple[str, str]:
-    base_log_dir = get_env_variable("LOGFILE_OUT", os.getcwd())
-    arango_db_name1 = get_env_variable("ARANGO_DB_NAME1", "test_db1")
+def setup_logging_directory(db_name: str) -> Tuple[str, str]:
+    base_log_dir = os.getenv("LOGFILE_OUT", os.getcwd())
     timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
-    log_dir = os.path.join(base_log_dir, f"{arango_db_name1}_{timestamp}")
+    log_dir = os.path.join(base_log_dir, f"{db_name}_{timestamp}")
     os.makedirs(log_dir, exist_ok=True)
     return log_dir, timestamp
 
@@ -70,6 +44,20 @@ def write_log(log_dir: str, name: str, content: str, md_type: str = "bullet") ->
 
     with open(log_file, 'a') as file:
         file.write(output)
+
+
+# Argument Parsing
+def parse_arguments():  # Updated argparse function with flags
+    parser = argparse.ArgumentParser(description="Compare two ArangoDB databases.")
+    parser.add_argument("-url1", required=True, help="URL of the first ArangoDB instance (e.g., http://localhost:8529).")
+    parser.add_argument("-url2", required=True, help="URL of the second ArangoDB instance (e.g., http://localhost:8530).")
+    parser.add_argument("-user1", default="root", help="Username for the first ArangoDB instance (default: root).")
+    parser.add_argument("-user2", default="root", help="Username for the second ArangoDB instance (default: root).")
+    parser.add_argument("-pass1", required=True, help="Password for the first ArangoDB instance.")
+    parser.add_argument("-pass2", required=True, help="Password for the second ArangoDB instance.")
+    parser.add_argument("-db", required=True, help="Name of the database to compare on both ArangoDB instances.")
+    return parser.parse_args()
+
 
 # DB-Wide Entity Checks
 
@@ -247,23 +235,22 @@ def compare_recent_docs(db1: StandardDatabase, db2: StandardDatabase, log_dir: s
                 write_log(log_dir, "documents", f"Differences in document '{key}' in collection '{collection_name}':", "h3")
                 write_log(log_dir, "documents", str(differences), "bullet")
 
+
 # Main function
+def main():
+    args = parse_arguments()  # Use CLI arguments for all parameters
 
+    # Connect to databases using provided credentials
+    _, db1 = connect_to_arango(args.url1, args.db, args.user1, args.pass1)
+    _, db2 = connect_to_arango(args.url2, args.db, args.user2, args.pass2)
 
-def main() -> None:
-    (client1, db1), (client2, db2) = connect_to_arango_databases()
-    log_dir, timestamp = setup_logging_directory()
+    # Set up logging directory
+    log_dir, _ = setup_logging_directory(args.db)
 
-    # Call to get entity counts
+    # Perform comparisons
     get_db_entity_counts(db1, db2, log_dir)
-
-    # Compare per-collection counts
     compare_collection_counts(db1, db2, log_dir)
-
-    # Compare per-collection indexes
     compare_collection_indexes(db1, db2, log_dir)
-
-    # Compare recent documents
     compare_recent_docs(db1, db2, log_dir)
 
 
