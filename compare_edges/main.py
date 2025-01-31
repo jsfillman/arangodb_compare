@@ -76,9 +76,8 @@ def compare_and_display_results(results_db1, results_db2, workspace, workspace_i
 
 def process_input_file(input_file, db1, db2):
     """Process the input file containing graph/collection/ID combos."""
-    """Process the input file containing collection/ID combos."""
     summary = []
- with open(input_file, 'r') as file:
+    with open(input_file, 'r') as file:  # <-- Corrected indentation here
         lines = file.readlines()
 
     for line in lines:
@@ -89,6 +88,7 @@ def process_input_file(input_file, db1, db2):
         compare_and_display_results(results_db1, results_db2, workspace, workspace_id, summary)
 
     display_summary(summary)
+
 
 def display_summary(summary):
     """Display a summary table of all comparisons."""
