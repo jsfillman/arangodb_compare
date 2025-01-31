@@ -1,0 +1,7 @@
+ws,ws_workspace/100
+ws,ws_workspace/1000
+ws,ws_workspace/10000
+djornl,djornl_gene/AT3G45600
+djornl,djornl_gene/AT3G45080
+tax,ncbi_taxon/946046_2018-06-01
+tax,ncbi_taxon/980538_2018-01-01
