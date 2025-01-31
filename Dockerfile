@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the application code
 COPY arangodb_compare/ /app/arangodb_compare
 COPY connections_count/ /app/connections_count
+COPY compare_edges/ /app/compare_edges
 
 # Set environment variables
 ENV ARANGO_URL1=http://arangodb:8529
